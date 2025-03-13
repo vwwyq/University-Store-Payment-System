@@ -3,3 +3,4 @@ firebase-admin-sdk.json
 generateToken.js
 frontend/node_modules/
 backend/node_modules/
+backend/token.txt
