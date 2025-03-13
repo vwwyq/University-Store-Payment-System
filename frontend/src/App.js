@@ -1,3 +1,17 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:c9732cc83cec41719e64e3fb92822fab52d241aadaca87beedfdf74933475502
-size 458
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import Login from "./components/Login"
+import PrivateRoute from "./components/PrivateRoute"
+import Wallet from "./components/Wallet"
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/wallet" element={<PrivateRoute><Wallet /></PrivateRoute>} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default App;
