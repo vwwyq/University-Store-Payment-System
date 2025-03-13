@@ -1,2 +1,5 @@
-**/firebase-admin-sdk.json
-**/.env
+firebase-admin-sdk.json
+.env
+generateToken.js
+frontend/node_modules/
+backend/node_modules/
