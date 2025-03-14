@@ -58,7 +58,7 @@ router.post("/pay", (req, res) => {
   users[receiverId].balance += amount;
   users[userId].transactions.push({ type: "payment", amount });
 
-  res.json({ message: "Payment successful", balance: users[userId].balance });
+  res.json({ message: "Payment successful", userBalance: users[userId].balance, resceiverBalance: users[receiverId].balance });
 });
 
 
