@@ -7,31 +7,23 @@ const router = express.Router();
 router.post("/signup", async (req, res) => {
   const { email, password } = req.body;
 
-  if (!email) {
-    return res.status(400).json({ error: "Email is required" });
-  }
-  if (!password) {
-    return res.status(400).json({ error: "Password is required" });
-  }
+  if (!email) return res.status(400).json({ error: "Email is required" });
+  if (!password) return res.status(400).json({ error: "Password is required" });
 
   try {
     const userRecord = await admin.auth().createUser({ email, password });
     res.status(201).json({ message: "User created successfully", uid: userRecord.uid });
   } catch (error) {
     console.error("Firebase User Creation Error:", error.message);
-    res.status(500).json({ error: "Failed to create user" });
+    res.status(500).json({ error: error.message });
   }
 });
 
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
-  if (!email) {
-    return res.status(400).json({ error: "Email is required" });
-  }
-  if (!password) {
-    return res.status(400).json({ error: "Password is required" });
-  }
+  if (!email) return res.status(400).json({ error: "Email is required" });
+  if (!password) return res.status(400).json({ error: "Password is required" });
 
   let uid;
   try {
@@ -42,40 +34,37 @@ router.post("/login", async (req, res) => {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
-  let customToken;
   try {
-    customToken = await admin.auth().createCustomToken(uid);
-  } catch (error) {
-    console.error("Error creating Firebase custom token:", error.message);
-    return res.status(500).json({ error: "Failed to generate Firebase token" });
-  }
+    const customToken = await admin.auth().createCustomToken(uid);
+    const jwtToken = sign({ uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-  let jwtToken;
-  try {
-    jwtToken = sign({ uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    res.json({ firebaseToken: customToken, jwt: jwtToken });
   } catch (error) {
-    console.error("Error signing JWT:", error.message);
-    return res.status(500).json({ error: "Failed to generate JWT token" });
+    console.error("Error creating tokens:", error.message);
+    return res.status(500).json({ error: error.message });
   }
-
-  res.json({ firebaseToken: customToken, jwt: jwtToken });
 });
 
 router.post("/google-login", async (req, res) => {
-  const idToken = req.body;
+  const { idToken } = req.body;
+
+  if (!idToken) {
+    return res.status(400).json({ error: "ID Token is required" });
+  }
+
   try {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { uid, email } = decodedToken.uid;
+    const { uid, email } = decodedToken;
 
     if (!email.endsWith("@kiit.ac.in")) {
-      return res.status(403).json({ error: "Access denied. KIIT Email only" })
+      return res.status(403).json({ error: "Access denied. KIIT Email only" });
     }
 
     const jwtToken = sign({ uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
     res.json({ jwt: jwtToken });
-  } catch (e) {
-    console.error("Google login error:", e);
+  } catch (error) {
+    console.error("Google login error:", error.message);
     res.status(401).json({ error: "Invalid Google Token" });
   }
 });
