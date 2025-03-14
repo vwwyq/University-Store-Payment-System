@@ -61,4 +61,23 @@ router.post("/login", async (req, res) => {
   res.json({ firebaseToken: customToken, jwt: jwtToken });
 });
 
+router.post("/google-login", async (req, res) => {
+  const idToken = req.body;
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const { uid, email } = decodedToken.uid;
+
+    if (!email.endsWith("@kiit.ac.in")) {
+      return res.status(403).json({ error: "Access denied. KIIT Email only" })
+    }
+
+    const jwtToken = sign({ uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
+
+    res.json({ jwt: jwtToken });
+  } catch (e) {
+    console.error("Google login error:", e);
+    res.status(401).json({ error: "Invalid Google Token" });
+  }
+});
+
 module.exports = router;
