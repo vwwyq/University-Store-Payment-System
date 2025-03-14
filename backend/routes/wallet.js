@@ -39,12 +39,15 @@ router.post("/pay", (req, res) => {
   const { amount } = req.body;
   const userId = req.user.uid;
 
-  if (!userId || amount <= 0) {
-    return res.status(400).json({ error: "Invalid userId or amount" });
+  if (!receiverID || !userId) {
+    return res.status(400).json({ error: "Invalid userId or receiverId" });
   }
 
   if (!users[userId]) {
     return res.status(404).json({ error: "User not found" });
+  }
+  if (!users[receiverId]) {
+    return res.status(404).json({ error: "Receiver not found" });
   }
 
   if (users[userId].balance < amount) {
@@ -52,6 +55,7 @@ router.post("/pay", (req, res) => {
   }
 
   users[userId].balance -= amount;
+  users[receiverId].balance += amount;
   users[userId].transactions.push({ type: "payment", amount });
 
   res.json({ message: "Payment successful", balance: users[userId].balance });
