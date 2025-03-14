@@ -38,6 +38,8 @@ router.post("/login", async (req, res) => {
     const customToken = await admin.auth().createCustomToken(uid);
     const jwtToken = sign({ uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
+    res.cookie("jwt", jwtToken, { httpOnly: true, secure: true, sameSite: "strict", maxAge: 3600000 });
+
     res.json({ firebaseToken: customToken, jwt: jwtToken });
   } catch (error) {
     console.error("Error creating tokens:", error.message);
