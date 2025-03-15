@@ -1,6 +1,6 @@
 import { getFirebaseToken } from "../../firebase/token"; // Import function to get Firebase token
 
-const API_URL = "https://your-backend.com/auth/firebase-login"; // Replace with your actual backend URL
+const API_URL = "http://localhost:5000/auth/login";
 
 export async function sendTokenToBackend() {
   const token = await getFirebaseToken();
