@@ -22,8 +22,8 @@ router.post("/topup", async (req, res) => {
       "INSERT INTO wallet_transactions (user_id, amount, transaction_type, created_at) VALUES ((SELECT id FROM users WHERE firebase_uid = $1 LIMIT 1), $2, 'topup', NOW())",
       [userId, amount]
     );
-    
-    
+
+
 
     res.json({ message: "Wallet top-up successful" });
   } catch (error) {
@@ -48,7 +48,6 @@ router.get("/history", async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 router.post("/pay", (req, res) => {
   const { amount } = req.body;
   const userId = req.user.uid;
@@ -82,7 +81,5 @@ router.get("/history", (req, res) => {
 
   res.json({ transactions: users[userId].transactions })
 })
-=======
->>>>>>> postgres
 
 module.exports = router;
