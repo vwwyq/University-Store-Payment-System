@@ -1,6 +1,7 @@
 const express = require("express");
 const { sign } = require("jsonwebtoken");
 const admin = require("firebase-admin");
+const pool = require("../db");
 
 const router = express.Router();
 
@@ -9,9 +10,14 @@ router.post("/signup", async (req, res) => {
 
   if (!email) return res.status(400).json({ error: "Email is required" });
   if (!password) return res.status(400).json({ error: "Password is required" });
-
   try {
     const userRecord = await admin.auth().createUser({ email, password });
+
+    await pool.query(
+      "INSERT INTO users (firebase_uid, email, wallet_balance) VALUES ($1, $2, $3)",
+      [userRecord.uid, email, 0]
+    );
+
     res.status(201).json({ message: "User created successfully", uid: userRecord.uid });
   } catch (error) {
     console.error("Firebase User Creation Error:", error.message);
@@ -25,50 +31,23 @@ router.post("/login", async (req, res) => {
   if (!email) return res.status(400).json({ error: "Email is required" });
   if (!password) return res.status(400).json({ error: "Password is required" });
 
-  let uid;
   try {
     const userRecord = await admin.auth().getUserByEmail(email);
-    uid = userRecord.uid;
-  } catch (error) {
-    console.error("Error fetching user by email:", error.message);
-    return res.status(401).json({ error: "Invalid email or password" });
-  }
+    const firebaseUID = userRecord.uid;
 
-  try {
-    const customToken = await admin.auth().createCustomToken(uid);
-    const jwtToken = sign({ uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
-    res.cookie("jwt", jwtToken, { httpOnly: true, secure: true, sameSite: "strict", maxAge: 3600000 });
-
-    res.json({ firebaseToken: customToken, jwt: jwtToken });
-  } catch (error) {
-    console.error("Error creating tokens:", error.message);
-    return res.status(500).json({ error: error.message });
-  }
-});
-
-router.post("/google-login", async (req, res) => {
-  const { idToken } = req.body;
-
-  if (!idToken) {
-    return res.status(400).json({ error: "ID Token is required" });
-  }
-
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-    const { uid, email } = decodedToken;
-
-    if (!email.endsWith("@kiit.ac.in")) {
-      return res.status(403).json({ error: "Access denied. KIIT Email only" });
+    const result = await pool.query("SELECT * FROM users WHERE firebase_uid = $1", [firebaseUID]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: "User not found in database" });
     }
 
-    const jwtToken = sign({ uid }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const jwtToken = sign({ uid: firebaseUID }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-    res.json({ jwt: jwtToken });
+    res.json({ message: "Login successful", jwt: jwtToken });
   } catch (error) {
-    console.error("Google login error:", error.message);
-    res.status(401).json({ error: "Invalid Google Token" });
+    console.error("Login Error:", error.message);
+    res.status(401).json({ error: "Invalid email or password" });
   }
 });
+
 
 module.exports = router;
