@@ -48,37 +48,29 @@ router.get("/history", async (req, res) => {
 router.post("/pay", async (req, res) => {
   const { amount, receiverId: receiverFirebaseUid } = req.body;
   const payerFirebaseUid = req.user.uid;
-
   if (!receiverFirebaseUid || !payerFirebaseUid) {
     return res.status(400).json({ error: "Invalid receiverId or userId" });
   }
-
   if (!amount || typeof amount !== "number" || amount <= 0) {
     return res.status(400).json({ error: "Invalid payment amount" });
   }
-
   if (payerFirebaseUid === receiverFirebaseUid) {
     return res.status(400).json({ error: "Cannot pay yourself" });
   }
-
   try {
     await pool.query('BEGIN');
     const payerResult = await pool.query("SELECT id, wallet_balance FROM users WHERE firebase_uid = $1", [payerFirebaseUid]);
     const payer = payerResult.rows[0];
-
     if (!payer) {
       await pool.query('ROLLBACK');
       return res.status(404).json({ error: "Payer user not found" });
     }
-
     const receiverResult = await pool.query("SELECT id FROM users WHERE firebase_uid = $1", [receiverFirebaseUid]);
     const receiver = receiverResult.rows[0];
-
     if (!receiver) {
       await pool.query('ROLLBACK');
       return res.status(404).json({ error: "Receiver user not found" });
     }
-
     const payerUserId = payer.id;
     const receiverUserId = receiver.id;
     const payerWalletBalance = parseFloat(payer.wallet_balance);
