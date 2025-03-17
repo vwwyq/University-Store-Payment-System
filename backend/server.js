@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { sign } = require("jsonwebtoken");
 const admin = require("firebase-admin");
-const pool = require("./db"); // 🔹 Import PostgreSQL connection
+const pool = require("./db");
 
 const serviceAccount = require("./firebase-admin-sdk.json");
 const walletRoutes = require("./routes/wallet");
@@ -25,7 +25,6 @@ app.use(express.json());
 app.use("/wallet", walletRoutes);
 app.use("/auth", authRoutes);
 
-// 🔹 Test Database Connection
 app.get("/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
