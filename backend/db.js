@@ -1,10 +1,12 @@
 const { Pool } = require("pg");
+const fs = require('fs');
 require("dotenv").config();
 
 const pool = new Pool({
   user: process.env.DB_USER,
   ssl: {
-    rejectUnauthorized: false // For local testing, for production use 'true' and proper CA
+    rejectUnauthorized: true,
+    ca: fs.readFileSync('ap-south-1-bundle.pem').toString(),
   },
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
