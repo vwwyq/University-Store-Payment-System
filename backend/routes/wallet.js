@@ -48,6 +48,7 @@ router.get("/history", async (req, res) => {
 router.post("/pay", async (req, res) => {
   const { amount, receiverId: receiverFirebaseUid } = req.body;
   const payerFirebaseUid = req.user.uid;
+
   if (!receiverFirebaseUid || !payerFirebaseUid) {
     return res.status(400).json({ error: "Invalid receiverId or userId" });
   }
@@ -57,53 +58,71 @@ router.post("/pay", async (req, res) => {
   if (payerFirebaseUid === receiverFirebaseUid) {
     return res.status(400).json({ error: "Cannot pay yourself" });
   }
-  try {
-    await pool.query('BEGIN');
-    const payerResult = await pool.query("SELECT id, wallet_balance FROM users WHERE firebase_uid = $1", [payerFirebaseUid]);
-    const payer = payerResult.rows[0];
-    if (!payer) {
-      await pool.query('ROLLBACK');
-      return res.status(404).json({ error: "Payer user not found" });
-    }
-    const receiverResult = await pool.query("SELECT id FROM users WHERE firebase_uid = $1", [receiverFirebaseUid]);
-    const receiver = receiverResult.rows[0];
-    if (!receiver) {
-      await pool.query('ROLLBACK');
-      return res.status(404).json({ error: "Receiver user not found" });
-    }
-    const payerUserId = payer.id;
-    const receiverUserId = receiver.id;
-    const payerWalletBalance = parseFloat(payer.wallet_balance);
 
-    if (payerWalletBalance < amount) {
-      await pool.query('ROLLBACK');
+  try {
+    await pool.query("BEGIN");
+
+    const result = await pool.query(
+      `SELECT id, wallet_balance FROM users WHERE firebase_uid IN ($1, $2) FOR UPDATE`,
+      [payerFirebaseUid, receiverFirebaseUid]
+    );
+
+    if (result.rows.length !== 2) {
+      await pool.query("ROLLBACK");
+      return res.status(404).json({ error: "User(s) not found" });
+    }
+
+    const payer = result.rows.find((user) => user.id === result.rows[0].id);
+    const receiver = result.rows.find((user) => user.id !== payer.id);
+
+    if (payer.wallet_balance < amount) {
+      await pool.query("ROLLBACK");
       return res.status(400).json({ error: "Insufficient balance" });
     }
+
     await pool.query(
-      "UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2",
-      [amount, payerUserId]
+      `UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2`,
+      [amount, payer.id]
     );
     await pool.query(
-      "UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2",
-      [amount, receiverUserId]
+      `UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2`,
+      [amount, receiver.id]
     );
 
     await pool.query(
-      "INSERT INTO wallet_transactions (user_id, amount, transaction_type, transaction_status, created_at, related_user_id) VALUES ($1, $2, 'payment', 'completed', NOW(), $3)",
-      [payerUserId, -amount, receiverUserId]
-    );
-    await pool.query(
-      "INSERT INTO wallet_transactions (user_id, amount, transaction_type, transaction_status, created_at, related_user_id) VALUES ($1, $2, 'receive', 'completed', NOW(), $3)",
-      [receiverUserId, amount, payerUserId]
+      `INSERT INTO wallet_transactions (user_id, amount, transaction_type, transaction_status, created_at, related_user_id)
+       VALUES ($1, $2, 'payment', 'completed', NOW(), $3), 
+              ($3, $2, 'receive', 'completed', NOW(), $1)`,
+      [payer.id, -amount, receiver.id]
     );
 
-    await pool.query('COMMIT');
+    await pool.query("COMMIT");
     res.json({ message: "Payment successful" });
   } catch (error) {
-    await pool.query('ROLLBACK');
+    await pool.query("ROLLBACK");
     console.error("Database Error during payment:", error);
     res.status(500).json({ error: "Internal Server Error - Payment failed" });
   }
 });
 
+
+router.get("/balance", async (req, res) => {
+  const userId = req.user.uid;
+
+  try {
+    const result = await pool.query(
+      "SELECT wallet_balance FROM users WHERE firebase_uid = $1",
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json({ balance: result.rows[0].wallet_balance });
+  } catch (error) {
+    console.error("Database Error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
 module.exports = router;
