@@ -10,12 +10,15 @@ router.post("/signup", async (req, res) => {
 
   if (!email) return res.status(400).json({ error: "Email is required" });
   if (!password) return res.status(400).json({ error: "Password is required" });
+
+  const hashedPassword = await bcrypt.hash(password, 12);
+  if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters long" });
   try {
     const userRecord = await admin.auth().createUser({ email, password });
 
     await pool.query(
-      "INSERT INTO users (firebase_uid, email, wallet_balance) VALUES ($1, $2, $3)",
-      [userRecord.uid, email, 0]
+      "INSERT INTO users (firebase_uid, email, wallet_balance, password) VALUES ($1, $2, $3)",
+      [userRecord.uid, email, 0, hashedPassword]
     );
 
     res.status(201).json({ message: "User created successfully", uid: userRecord.uid });
