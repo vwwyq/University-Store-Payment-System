@@ -7,27 +7,46 @@ router.use(authenticateToken);
 
 router.post("/topup", async (req, res) => {
   const { amount } = req.body;
-  const userId = req.user.uid;
+  const userFirebaseUid = req.user.uid;
 
   if (!amount || typeof amount !== "number" || amount <= 0) {
     return res.status(400).json({ error: "Invalid amount" });
   }
 
   try {
-    await pool.query("UPDATE users SET wallet_balance = wallet_balance + $1 WHERE firebase_uid = $2", [amount, userId]);
+    await pool.query("BEGIN");
 
-    await pool.query(
-      "INSERT INTO wallet_transactions (user_id, amount, transaction_type, transaction_status, created_at) VALUES ((SELECT id FROM users WHERE firebase_uid = $1 LIMIT 1), $2, 'topup', 'completed', NOW())",
-      [userId, amount]
+    const result = await pool.query(
+      "SELECT id, wallet_balance FROM users WHERE firebase_uid = $1 FOR UPDATE",
+      [userFirebaseUid]
     );
 
+    if (result.rows.length === 0) {
+      await pool.query("ROLLBACK");
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    const user = result.rows[0];
+
+    await pool.query(
+      "UPDATE users SET wallet_balance = wallet_balance + $1 WHERE id = $2",
+      [amount, user.id]
+    );
+
+    await pool.query(
+      `INSERT INTO wallet_transactions (user_id, amount, transaction_type, transaction_status, related_user_id, created_at)
+       VALUES ($1, $2, 'topup', 'completed', $1, NOW())`,
+      [user.id, amount]
+    );
+
+    await pool.query("COMMIT");
     res.json({ message: "Wallet top-up successful" });
   } catch (error) {
-    console.error("Database Error:", error);
-    res.status(500).json({ error: "Internal Server Error during topup" });
+    await pool.query("ROLLBACK");
+    console.error("Database Error during top-up:", error);
+    res.status(500).json({ error: "Internal Server Error - Top-up failed" });
   }
 });
-
 router.get("/history", async (req, res) => {
   const userId = req.user.uid;
 
