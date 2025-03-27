@@ -48,11 +48,22 @@ router.post("/topup", async (req, res) => {
   }
 });
 router.get("/history", async (req, res) => {
-  const userId = req.user.uid;
+  const userFirebaseUid = req.user.uid;
 
   try {
+    const userResult = await pool.query(
+      "SELECT id FROM users WHERE firebase_uid = $1 LIMIT 1",
+      [userFirebaseUid]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ error: "User not found" });
+    }
+
+    const userId = userResult.rows[0].id;
+
     const transactions = await pool.query(
-      "SELECT amount, transaction_type, created_at FROM wallet_transactions WHERE user_id = (SELECT id FROM users WHERE firebase_uid = $1 LIMIT 1) ORDER BY created_at DESC",
+      "SELECT amount, transaction_type, transaction_status, created_at FROM wallet_transactions WHERE user_id = $1 ORDER BY created_at DESC",
       [userId]
     );
 
