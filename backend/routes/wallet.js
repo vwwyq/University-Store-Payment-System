@@ -69,7 +69,7 @@ router.post("/pay", async (req, res) => {
 
     if (result.rows.length !== 2) {
       await pool.query("ROLLBACK");
-      return res.status(404).json({ error: "User(s) not found" });
+      return res.status(400).json({ error: "User(s) not found)" });
     }
 
     const payer = result.rows.find((user) => user.id === result.rows[0].id);
@@ -92,8 +92,8 @@ router.post("/pay", async (req, res) => {
     await pool.query(
       `INSERT INTO wallet_transactions (user_id, amount, transaction_type, transaction_status, created_at, related_user_id)
        VALUES ($1, $2, 'payment', 'completed', NOW(), $3), 
-              ($3, $2, 'receive', 'completed', NOW(), $1)`,
-      [payer.id, -amount, receiver.id]
+              ($3, $4, 'receive', 'completed', NOW(), $1)`,
+      [payer.id, -amount, receiver.id, +amount]
     );
 
     await pool.query("COMMIT");

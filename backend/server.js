@@ -8,6 +8,7 @@ const pool = require("./db");
 const serviceAccount = require("./firebase-admin-sdk.json");
 const walletRoutes = require("./routes/wallet");
 const authRoutes = require("./routes/auth");
+const https = require("https")
 
 if (!process.env.JWT_SECRET) {
   console.error("ERROR: Missing JWT_SECRET in .env file");
@@ -16,6 +17,7 @@ if (!process.env.JWT_SECRET) {
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
+  httpAgent: new https.Agent({ keepAlive: true, timeout: 60000 })
 });
 
 const app = express();
