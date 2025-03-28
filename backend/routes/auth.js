@@ -1,12 +1,18 @@
-const express = require("express");
-const { sign } = require("jsonwebtoken");
-const admin = require("firebase-admin");
-const pool = require("../db");
+import { Router } from "express";
+import admin from "firebase-admin";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+import { pool } from "../db.js";
 
-const router = express.Router();
+const result = await pool.query("SELECT * FROM users");
+
+const { auth } = admin;
+const { sign } = jwt;
+
+const router = Router();
 
 router.post("/signup", async (req, res) => {
-  const { email, password } = req.body;
+  const { uid, firstName, lastName, email, university, password } = req.body;
 
   if (!email) return res.status(400).json({ error: "Email is required" });
   if (!password) return res.status(400).json({ error: "Password is required" });
@@ -14,14 +20,13 @@ router.post("/signup", async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, 12);
   if (password.length < 8) return res.status(400).json({ error: "Password must be at least 8 characters long" });
   try {
-    const userRecord = await admin.auth().createUser({ email, password });
 
     await pool.query(
-      "INSERT INTO users (firebase_uid, email, wallet_balance, password) VALUES ($1, $2, $3)",
-      [userRecord.uid, email, 0, hashedPassword]
+      "INSERT INTO users (firebase_uid, firstName, lastName, email, university, password, wallet_balance) VALUES ($1, $2, $3, $4, $5, $6, $7)",
+      [uid, firstName, lastName, email, university, hashedPassword, 0]
     );
 
-    res.status(201).json({ message: "User created successfully", uid: userRecord.uid });
+    res.status(201).json({ message: "User created successfully", uid });
   } catch (error) {
     console.error("Firebase User Creation Error:", error.message);
     res.status(500).json({ error: error.message });
@@ -41,21 +46,29 @@ router.post("/login", async (req, res) => {
     const result = await pool.query("SELECT * FROM users WHERE firebase_uid = $1", [firebaseUID]);
 
     if (result.rows.length === 0) {
-      return res.status(403).json({ error: "User not found in database" });
+      const { displayName, email } = userRecord;
+      const [firstName, lastName] = displayName ? displayName.split(" ") : ["", ""];
+
+      await pool.query(
+        "INSERT INTO users (firebase_uid, firstName, lastName, email, university, password, wallet_balance) VALUES ($1, $2, $3, $4, $5, $6)",
+        [firebaseUID, firstName, lastName, email, university, password, 0]
+      );
     }
 
     const jwtToken = sign({ uid: firebaseUID }, process.env.JWT_SECRET, { expiresIn: "1h" });
 
-    res.json({ message: "Login successful", jwt: jwtToken });
+    res.cookie("token", jwtToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Strict",
+      maxAge: 3600000,
+    });
+
+    res.json({ message: "Login successful" });
 
   } catch (error) {
     console.error("Login error: ", error);
-    if (error.code === "auth/user-not-found") {
-      return res.status(401).json({ error: "User not found in Firebase" });
-    }
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
-module.exports = router;
+export default router;

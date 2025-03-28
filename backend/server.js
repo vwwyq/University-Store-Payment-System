@@ -1,14 +1,20 @@
-require("dotenv").config();
-const express = require("express");
-const cors = require("cors");
-const { sign } = require("jsonwebtoken");
-const admin = require("firebase-admin");
-const pool = require("./db");
+import { config } from "dotenv";
+import express from "express";
+import cors from "cors";
+import jwt from "jsonwebtoken"
+import admin from "firebase-admin";
+import { pool } from "./db.js";
+import https from "https";
+import fs from "fs";
 
-const serviceAccount = require("./firebase-admin-sdk.json");
-const walletRoutes = require("./routes/wallet");
-const authRoutes = require("./routes/auth");
-const https = require("https")
+const { sign } = jwt;
+
+const serviceAccount = JSON.parse(
+  fs.readFileSync(new URL("./firebase-admin-sdk.json", import.meta.url), "utf-8")
+);
+
+import walletRoutes from "./routes/wallet.js";
+import authRoutes from "./routes/auth.js";
 
 if (!process.env.JWT_SECRET) {
   console.error("ERROR: Missing JWT_SECRET in .env file");
@@ -21,7 +27,7 @@ admin.initializeApp({
 });
 
 const app = express();
-app.use(cors());
+app.use(cors({ origin: "http://localhost:3000" }));
 app.use(express.json());
 
 app.use("/wallet", walletRoutes);

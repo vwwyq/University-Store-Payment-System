@@ -124,18 +124,33 @@ export default function LoginPage() {
   const [error, setError] = useState("")
 
   const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
 
     try {
-      await signInWithEmailAndPassword(auth, email, password)
-      router.push("/dashboard") // Redirect on success
+      const response = await fetch(process.env.NEXT_PUBLIC_LOGIN_URL as string, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Login failed");
+      }
+
+      localStorage.setItem("token", data.jwt);
+
+      router.push("/dashboard");
     } catch (error: any) {
-      setError(error.message) // Show error message
-      setIsLoading(false)
+      setError(error.message);
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleGoogleLogin = async () => {
     setIsLoading(true)

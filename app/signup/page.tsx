@@ -154,7 +154,24 @@ export default function SignupPage() {
 
     try {
       setIsLoading(true);
-      await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+
+      console.log("Signup url: ", process.env.NEXT_PUBLIC_SIGNUP_URL);
+      await fetch(process.env.NEXT_PUBLIC_SIGNUP_URL as string, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          password: formData.password,
+          university: formData.university,
+        }),
+      });
+
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message);
@@ -162,6 +179,7 @@ export default function SignupPage() {
       setIsLoading(false);
     }
   };
+  ;
 
   const handleGoogleSignup = async () => {
     try {

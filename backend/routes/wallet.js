@@ -1,8 +1,8 @@
-const express = require("express");
-const router = express.Router();
-const pool = require("../db");
-const authenticateToken = require("../middleware/authMid");
+import express from "express";
+import { pool } from "../db.js";
+import authenticateToken from "../middleware/authMid.js";
 
+const router = express.Router();
 router.use(authenticateToken);
 
 router.post("/topup", async (req, res) => {
@@ -155,4 +155,4 @@ router.get("/balance", async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
-module.exports = router;
+export default router;
