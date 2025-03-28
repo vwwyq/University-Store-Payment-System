@@ -1,5 +1,6 @@
 .env
 generateToken.js
+firebase-admin-sdk.json
 
 backend/node_modules/
 backend/token.txt
