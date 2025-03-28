@@ -43,9 +43,10 @@ export default function LoginPage() {
       localStorage.setItem("token", data.jwt);
 
       router.push("/dashboard");
-      setIsLoading(false);
     } catch (error: any) {
       setError(error.message);
+      setIsLoading(false);
+    } finally {
       setIsLoading(false);
     }
   };
