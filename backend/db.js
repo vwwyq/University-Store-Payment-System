@@ -1,12 +1,19 @@
-const { Pool } = require("pg");
-//const fs = require('fs');
-require("dotenv").config();
+import { config } from "dotenv";
+import pg from "pg";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
-//const caCert = fs.readFileSync('ap-south-1-bundle.pem').toString();
+config();
+const { Pool } = pg;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// const caCert = fs.readFileSync(`${__dirname}/ap-south-1-bundle.pem`).toString();
 
 const pool = new Pool({
   user: process.env.DB_USER,
-  //ssl: { rejectUnauthorized: false },
   host: process.env.DB_HOST,
   database: process.env.DB_NAME,
   password: process.env.DB_PASSWORD,
@@ -16,11 +23,16 @@ const pool = new Pool({
   query_timeout: 50000,
   connectionTimeoutMillis: 60000,
   keepAlive: true,
+  // ssl: { rejectUnauthorized: false, ca: caCert }, // Uncomment if needed
 });
 
-pool.on("connect", () => {
+pool.on("connect", async () => {
   console.log("Connected to the PostgreSQL database!");
-  pool.query("SELECT * From users")
+  try {
+    await pool.query("SELECT * FROM users");
+  } catch (err) {
+    console.error("Database query error:", err);
+  }
 });
 
 pool.on("error", (err) => {
@@ -35,13 +47,12 @@ pool.on("error", (err) => {
     console.log("Setting up initial db connection...");
     const client = await pool.connect();
     await client.query("SELECT 1");
-    client.release()
+    client.release();
     console.log("Database is ready");
   } catch (error) {
     console.error("Error setting up init db conn:", error);
   }
 })();
-
 
 setInterval(async () => {
   try {
@@ -53,4 +64,6 @@ setInterval(async () => {
   }
 }, 30000);
 
-module.exports = pool;
+const query = (text, params) => pool.query(text, params);
+
+export { query, pool };

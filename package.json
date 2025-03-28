@@ -1,6 +1,4 @@
 {
-  "dependencies": {
-    "pg": "^8.14.0"
   "name": "frontend",
   "version": "0.1.0",
   "private": true,
@@ -11,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "pg": "^8.14.0",
     "@auth/prisma-adapter": "^2.8.0",
     "@next-auth/prisma-adapter": "^1.0.7",
     "@radix-ui/react-avatar": "^1.1.3",

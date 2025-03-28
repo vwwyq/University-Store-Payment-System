@@ -1,4 +1,4 @@
-const { verify } = require("jsonwebtoken");
+import verify from "jsonwebtoken";
 
 function authenticateToken(req, res, next) {
   const token = req.cookies?.jwt || req.headers.authorization?.split(" ")[1];
@@ -13,4 +13,4 @@ function authenticateToken(req, res, next) {
   }
 };
 
-module.exports = authenticateToken;
+export default authenticateToken;
