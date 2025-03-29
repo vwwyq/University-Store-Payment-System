@@ -164,24 +164,37 @@ export default function WalletPage() {
             </CardHeader>
             <CardContent>
               {transactions.length > 0 ? (
-                transactions.map((tx, index) => (
-                  <div key={index} className="rounded-lg border p-4 flex justify-between">
-                    <div>
-                      <p className="font-medium">{tx.transaction_type.toUpperCase()}</p>
-                      <p className="text-xs text-muted-foreground">{new Date(tx.created_at).toLocaleString()}</p>
-                    </div>
-                    <p className={`font-bold ${tx.transaction_type === "receive" ? "text-green-600" : "text-red-600"}`}>
-                      {tx.transaction_type === "receive" ? `+₹${tx.amount}` : `-₹${tx.amount}`}
-                    </p>
-                  </div>
-                ))
+                <div className="space-y-3">
+                  {transactions.map((tx, index) => {
+                    const isTopUp =
+                      tx.transaction_type === "receive" ||
+                      tx.transaction_type === "topup" ||
+                      (tx.amount && parseFloat(tx.amount) > 0);
+
+                    return (
+                      <div key={index} className="rounded-lg border p-4 flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">
+                            {isTopUp ? "TOP-UP" : tx.transaction_type?.toUpperCase() || "PAYMENT"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(tx.created_at || tx.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <p className={`font-bold ${isTopUp ? "text-green-600" : "text-red-600"}`}>
+                          {isTopUp ? `+₹${Math.abs(parseFloat(tx.amount)).toFixed(2)}` : `-₹${Math.abs(parseFloat(tx.amount)).toFixed(2)}`}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
               ) : (
-                <p>No transactions found.</p>
+                <p className="text-center py-6 text-muted-foreground">No transactions found.</p>
               )}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
