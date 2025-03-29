@@ -158,17 +158,19 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
 
+      const token = await user.getIdToken();
+
       console.log("Signup url: ", process.env.NEXT_PUBLIC_SIGNUP_URL);
       await fetch(process.env.NEXT_PUBLIC_SIGNUP_URL as string, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          uid: user.uid,
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
           password: formData.password,
           university: formData.university,
+          token: token,
         }),
       });
 

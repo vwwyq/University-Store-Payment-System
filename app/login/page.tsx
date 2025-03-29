@@ -1,4 +1,3 @@
-
 "use client"
 
 import React, { useState } from "react"
@@ -32,6 +31,7 @@ export default function LoginPage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email, password }),
+        credentials: "include",
       });
 
       const data = await response.json();
@@ -39,8 +39,6 @@ export default function LoginPage() {
       if (!response.ok) {
         throw new Error(data.error || "Login failed");
       }
-
-      localStorage.setItem("token", data.jwt);
 
       router.push("/dashboard");
     } catch (error: any) {

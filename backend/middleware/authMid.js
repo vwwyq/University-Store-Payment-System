@@ -1,17 +1,23 @@
 import jwt from "jsonwebtoken";
 
-function authenticateToken(req, res, next) {
-  const token = req.cookies?.jwt || req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Access denied. No token provided" });
+
+const authenticateToken = (req, res, next) => {
+  console.log("Cookies received:", req.cookies); // Log cookies
+
+  const token = req.cookies.jwtToken;
+  if (!token) {
+    console.log("No token found in cookies.");
+    return res.status(401).json({ error: "Access denied" });
+  }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const verified = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Token verified:", verified);
+    req.user = { id: verified.id, uid: verified.uid };
     next();
-  } catch (error) {
-    console.error("Middleware error: ", error);
-    return res.status(403).json({ error: "Access denied. Invalid token" });
+  } catch (err) {
+    console.log("JWT verification error:", err);
+    res.status(403).json({ error: "Invalid token" });
   }
-}
-
+};
 export default authenticateToken;
