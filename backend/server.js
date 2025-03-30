@@ -7,6 +7,8 @@ import { pool } from "./db.js";
 import https from "https";
 import fs from "fs";
 import cookieParser from "cookie-parser";
+import { WebSocket, WebSocketServer } from "ws";
+import http from "http";
 
 const { sign } = jwt;
 
@@ -36,6 +38,26 @@ app.use(cors({
 
 app.use(cookieParser());
 app.use(express.json());
+const server = http.createServer(app);
+const wss = new WebSocketServer({ server });
+
+app.set("wss", wss);
+wss.on("connection", (ws) => {
+  console.log("New client connected");
+
+  wss.on("message", (message) => {
+    console.log("Received:", message);
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send("New client connected");
+      }
+    });
+  });
+
+  ws.on("close", () => {
+    console.log("Client disconnected");
+  });
+});
 
 app.use("/wallet", walletRoutes);
 app.use("/auth", authRoutes);

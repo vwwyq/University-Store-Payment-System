@@ -35,8 +35,13 @@ export const topUpWallet = async (req, res) => {
     );
 
     await pool.query("COMMIT");
+    req.app.get("wss").clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({ type: "Topup", amount, transactionType: 'topup' }))
+      }
+    })
     const updatedBalance = await getUserBalance(user.id);
-    console.log("updatedBalance in topup fn: ", updatedBalance)
+    // console.log("updatedBalance in topup fn: ", updatedBalance)
     res.json({
       message: "Wallet top-up successful",
       newBalance: Number(updatedBalance),

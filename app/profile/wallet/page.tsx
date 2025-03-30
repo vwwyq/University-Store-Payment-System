@@ -17,8 +17,22 @@ export default function WalletPage() {
   const [transactions, setTransactions] = useState<any[]>([])
 
   useEffect(() => {
-    fetchWalletData()
-  }, [])
+    fetchWalletData();
+
+    const socket = new WebSocket("ws://localhost:5000");
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      console.log("WebSocket Update:", data);
+
+      if (data.type === "NEW_TRANSACTION") {
+        setBalance(data.newBalance);
+        setTransactions((prev) => [data, ...prev]); // Add new transaction
+      }
+    };
+
+    return () => socket.close();
+  }, []);
 
   const fetchWalletData = async () => {
     try {
@@ -30,8 +44,8 @@ export default function WalletPage() {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to fetch wallet data: ${errorText}`);
+        console.error("Cookies not set, redirecting to login page...");
+        window.location.href = "/login";
       }
 
       const data = await response.json();
