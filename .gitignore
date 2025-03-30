@@ -1,9 +1,6 @@
-<<<<<<< HEAD
 .env
 generateToken.js
-firebase-admin-sdk.json
 
-backend/node_modules/
 backend/token.txt
 backend/firebase-admin-sdk.json
 backend/.env
@@ -60,9 +57,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-=======
-node_modules/
 backend/node_modules/
 firebase-admin-sdk.json
-backend/firebase-admin-sdk.json
->>>>>>> newfrontend
