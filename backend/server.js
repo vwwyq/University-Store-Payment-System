@@ -18,6 +18,7 @@ const serviceAccount = JSON.parse(
 
 import walletRoutes from "./routes/wallet.js";
 import authRoutes from "./routes/auth.js";
+import userRoutes from "./routes/user.js";
 
 if (!process.env.JWT_SECRET) {
   console.error("ERROR: Missing JWT_SECRET in .env file");
@@ -61,6 +62,7 @@ wss.on("connection", (ws) => {
 
 app.use("/wallet", walletRoutes);
 app.use("/auth", authRoutes);
+app.use("/api", userRoutes);
 
 app.get("/test-db", async (req, res) => {
   try {
