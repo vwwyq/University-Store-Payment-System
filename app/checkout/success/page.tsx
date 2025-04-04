@@ -187,7 +187,6 @@ function CheckoutConfirmationContent() {
         throw new Error(result.message || `Payment failed (Status: ${result.status || 'unknown'})`);
       }
     } catch (err) {
-      console.error("Payment processing error:", err);
       setError((err as Error).message || "An unexpected error occurred during payment.");
     } finally {
       setLoading(false);
