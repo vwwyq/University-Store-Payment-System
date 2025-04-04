@@ -1,3 +1,5 @@
+"use client"
+import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -6,7 +8,50 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 import { Edit, MessageSquare, Package, Star } from "lucide-react"
 
+
+interface UserProfile {
+  firstName: string;
+  lastName: string;
+
+}
+
 export default function ProfilePage() {
+
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const response = await fetch(process.env.NEXT_PUBLIC_USER_URL as string, { credentials: "include" });
+        if (!response.ok) {
+          throw new Error(`Failed to fetch profile: ${response.status} ${response.statusText}`);
+        }
+        const data: UserProfile = await response.json();
+        setProfile(data);
+      } catch (err) {
+        console.error("Error fetching profile data:", err);
+        setError(err instanceof Error ? err.message : 'An unknown error occurred');
+        setProfile(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProfileData();
+  }, []);
+
+
+  const getInitials = (firstName?: string, lastName?: string): string => {
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    }
+    return '??';
+  }
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <div className="flex items-center justify-between">
@@ -24,11 +69,17 @@ export default function ProfilePage() {
           <CardContent className="p-6">
             <div className="flex flex-col items-center space-y-4">
               <Avatar className="h-24 w-24">
+                {}
                 <AvatarImage src="/placeholder.svg" alt="Profile picture" />
-                <AvatarFallback>JD</AvatarFallback>
+                <AvatarFallback>
+                  {isLoading ? '...' : getInitials(profile?.firstName, profile?.lastName)}
+                </AvatarFallback>
               </Avatar>
               <div className="space-y-1 text-center">
-                <h3 className="text-xl font-bold">John Doe</h3>
+                <h3 className="text-xl font-bold">
+                  {isLoading ? 'Loading...' : error ? 'Error loading name' : `${profile?.firstName || ''} ${profile?.lastName || ''}`}
+                </h3>
+                {}
                 <p className="text-sm text-muted-foreground">Computer Science</p>
                 <div className="flex items-center justify-center">
                   <Star className="h-4 w-4 fill-primary text-primary" />
@@ -75,7 +126,6 @@ export default function ProfilePage() {
               <TabsTrigger value="purchases">Purchases</TabsTrigger>
               <TabsTrigger value="reviews">Reviews</TabsTrigger>
             </TabsList>
-
             <TabsContent value="listings" className="space-y-4">
               <Card>
                 <CardHeader>
@@ -83,62 +133,6 @@ export default function ProfilePage() {
                   <CardDescription>Manage your current items for sale</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {/* Listing Item */}
-                    <div className="flex items-center gap-4 rounded-lg border p-4">
-                      <div className="h-16 w-16 rounded-md bg-muted">
-                        <img src="/placeholder.svg" alt="Product" className="h-full w-full object-cover rounded-md" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">Calculus Textbook</h4>
-                          <Badge>Books</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Listed 2 days ago</p>
-                        <p className="font-medium">$45.00</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          Edit
-                        </Button>
-                        <Button variant="destructive" size="sm">
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Listing Item */}
-                    <div className="flex items-center gap-4 rounded-lg border p-4">
-                      <div className="h-16 w-16 rounded-md bg-muted">
-                        <img src="/placeholder.svg" alt="Product" className="h-full w-full object-cover rounded-md" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">Desk Lamp</h4>
-                          <Badge>Furniture</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Listed 5 days ago</p>
-                        <p className="font-medium">$15.00</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          Edit
-                        </Button>
-                        <Button variant="destructive" size="sm">
-                          Remove
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-center">
-                      <Button asChild>
-                        <Link href="/sell">
-                          <Package className="mr-2 h-4 w-4" />
-                          List New Item
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -150,49 +144,6 @@ export default function ProfilePage() {
                   <CardDescription>Items you've bought from other students</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {/* Purchase Item */}
-                    <div className="flex items-center gap-4 rounded-lg border p-4">
-                      <div className="h-16 w-16 rounded-md bg-muted">
-                        <img src="/placeholder.svg" alt="Product" className="h-full w-full object-cover rounded-md" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">Bluetooth Speaker</h4>
-                          <Badge>Electronics</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Purchased 1 week ago</p>
-                        <p className="font-medium">$25.00</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          Contact Seller
-                        </Button>
-                        <Button size="sm">Leave Review</Button>
-                      </div>
-                    </div>
-
-                    {/* Purchase Item */}
-                    <div className="flex items-center gap-4 rounded-lg border p-4">
-                      <div className="h-16 w-16 rounded-md bg-muted">
-                        <img src="/placeholder.svg" alt="Product" className="h-full w-full object-cover rounded-md" />
-                      </div>
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold">Psychology 101 Textbook</h4>
-                          <Badge>Books</Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground">Purchased 3 weeks ago</p>
-                        <p className="font-medium">$35.00</p>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                          Contact Seller
-                        </Button>
-                        <Button size="sm">Leave Review</Button>
-                      </div>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -204,55 +155,6 @@ export default function ProfilePage() {
                   <CardDescription>What other students are saying about you</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {/* Review Item */}
-                    <div className="rounded-lg border p-4">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>MR</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">Maria Rodriguez</p>
-                          <div className="flex items-center">
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                          </div>
-                        </div>
-                        <p className="ml-auto text-xs text-muted-foreground">2 weeks ago</p>
-                      </div>
-                      <p className="mt-2 text-sm">
-                        Great seller! The textbook was in perfect condition as described. Quick to respond and easy to
-                        meet up with.
-                      </p>
-                    </div>
-
-                    {/* Review Item */}
-                    <div className="rounded-lg border p-4">
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>JW</AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium">James Wilson</p>
-                          <div className="flex items-center">
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                            <Star className="h-3 w-3 fill-primary text-primary" />
-                            <Star className="h-3 w-3 text-muted-foreground" />
-                            <Star className="h-3 w-3 text-muted-foreground" />
-                          </div>
-                        </div>
-                        <p className="ml-auto text-xs text-muted-foreground">1 month ago</p>
-                      </div>
-                      <p className="mt-2 text-sm">
-                        The desk lamp works well, but it had a few more scratches than I expected. Still a good deal for
-                        the price.
-                      </p>
-                    </div>
-                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -262,4 +164,3 @@ export default function ProfilePage() {
     </div>
   )
 }
-

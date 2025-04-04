@@ -5,39 +5,57 @@ import { pool } from '../db.js';
 const router = Router();
 
 router.get('/user', authenticateToken, async (req, res) => {
-  if (req.user && req.user.id) {
-    try {
-      let balance = req.user.balance;
+  if (!req.user || !req.user.id) {
+    console.warn("No user ID found");
+    return res.status(401).json({ success: false, message: "Unauthorized: User invalid or expired" });
+  }
 
-      if (balance === undefined || balance === null) {
-        console.log(`Fetching balance for user ID: ${req.user.id}`);
-        const balanceResult = await pool.query(
-          'SELECT wallet_balance FROM users WHERE id = $1',
-          [req.user.id]
-        );
+  const fields = req.query.fields ? req.query.fields.split(',') : ['balance', 'firstName', 'lastName'];
 
-        if (balanceResult.rows.length > 0) {
-          balance = balanceResult.rows[0].wallet_balance.toString();
-        } else {
-          console.error(`User balance not found in DB for authenticated user ID: ${req.user.id}`);
-          balance = "0.00";
-        }
+  try {
+    let response = { success: true, id: req.user.id, uid: req.user.uid };
+    let dbFields = [];
+    const fieldMap = {
+      balance: 'wallet_balance',
+      firstName: 'firstname',
+      lastName: 'lastname',
+      registrationDate: 'registration_date',
+    };
+
+    for (const field of fields) {
+      if (fieldMap[field]) {
+        dbFields.push(fieldMap[field]);
       }
-
-      res.status(200).json({
-        success: true,
-        id: req.user.id,
-        uid: req.user.uid,
-        balance: balance
-      });
-
-    } catch (error) {
-      console.error(`Error processing user ID ${req.user.id}:`, error);
-      res.status(500).json({ success: false, message: 'Internal server error while retrieving user data' });
     }
-  } else {
-    console.warn('GET middleware error');
-    res.status(401).json({ success: false, message: 'Unauthorized: User invalid' });
+
+    if (dbFields.length > 0) {
+      const query = `SELECT ${dbFields.join(',')} FROM users WHERE id = $1`;
+      const userDetails = await pool.query(query, [req.user.id]);
+
+      if (userDetails.rows.length > 0) {
+        let details = userDetails.rows[0];
+        for (const field of fields) {
+          if (field === 'balance') {
+            response.balance = details.wallet_balance ? details.wallet_balance.toString() : "0.00";
+          } else if (field === 'firstName') {
+            response.firstName = details.firstname ? details.firstname.toString() : "John";
+            console.log("FirstName requested", details.firstname)
+          } else if (field === 'lastName') {
+            response.lastName = details.lastname ? details.lastname.toString() : "Doe";
+          }
+        }
+      } else {
+        return res.status(404).json({ success: false, message: "User not found" });
+      }
+    } else {
+      return res.status(400).json({ success: false, message: "No fields requested" });
+    }
+
+    res.status(200).json(response);
+
+  } catch (error) {
+    console.error(`Error processing user ID ${req.user.id}:`, error);
+    res.status(500).json({ success: false, message: 'Internal server error while retrieving user data' });
   }
 });
 
