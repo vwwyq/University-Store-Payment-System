@@ -10,15 +10,15 @@ router.get('/user', authenticateToken, async (req, res) => {
     return res.status(401).json({ success: false, message: "Unauthorized: User invalid or expired" });
   }
 
-  const fields = req.query.fields ? req.query.fields.split(',') : ['balance', 'firstName', 'lastName'];
+  const fields = req.query.fields ? req.query.fields.split(',') : ['balance', 'firstname', 'lastname'];
 
   try {
     let response = { success: true, id: req.user.id, uid: req.user.uid };
     let dbFields = [];
     const fieldMap = {
       balance: 'wallet_balance',
-      firstName: 'firstname',
-      lastName: 'lastname',
+      firstname: 'firstname',
+      lastname: 'lastname',
       registrationDate: 'registration_date',
     };
 
@@ -37,11 +37,11 @@ router.get('/user', authenticateToken, async (req, res) => {
         for (const field of fields) {
           if (field === 'balance') {
             response.balance = details.wallet_balance ? details.wallet_balance.toString() : "0.00";
-          } else if (field === 'firstName') {
-            response.firstName = details.firstname ? details.firstname.toString() : "John";
+          } else if (field === 'firstname') {
+            response.firstname = details.firstname ? details.firstname.toString() : "John";
             console.log("FirstName requested", details.firstname)
-          } else if (field === 'lastName') {
-            response.lastName = details.lastname ? details.lastname.toString() : "Doe";
+          } else if (field === 'lastname') {
+            response.lastname = details.lastname ? details.lastname.toString() : "Doe";
           }
         }
       } else {

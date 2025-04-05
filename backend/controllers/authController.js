@@ -10,7 +10,6 @@ export const login = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-    // Update this query to also retrieve the firebase_uid
     const { rows, rowCount } = await pool.query(
       "SELECT id, password, firebase_uid FROM users WHERE email = $1",
       [email]
@@ -59,7 +58,7 @@ export const signup = async (req, res) => {
 
     try {
       newUser = await pool.query(
-        "INSERT INTO users (firebase_uid, email, password, firstname, lastname) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "INSERT INTO users (firebase_uid, email, password, firstname, lastname) VALUES ($1, $2, $3, $4, $5) RETURNING id, firebase_uid", // Include firebase_uid in the return
         [firebase_uid, email, hashedPassword, firstname, lastname]
       );
     } catch (err) {
@@ -69,7 +68,11 @@ export const signup = async (req, res) => {
       });
     }
 
-    const jwtToken = jwt.sign({ uid: newUser.rows[0].id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+    const jwtToken = jwt.sign(
+      { id: newUser.rows[0].id, uid: newUser.rows[0].firebase_uid }, // Include uid
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     res.status(201).json({ message: "User registered successfully", jwtToken });
   } catch (error) {

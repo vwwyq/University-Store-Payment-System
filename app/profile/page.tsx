@@ -10,8 +10,8 @@ import { Edit, MessageSquare, Package, Star } from "lucide-react"
 
 
 interface UserProfile {
-  firstName: string;
-  lastName: string;
+  firstname: string;
+  lastname: string;
 
 }
 
@@ -46,9 +46,9 @@ export default function ProfilePage() {
   }, []);
 
 
-  const getInitials = (firstName?: string, lastName?: string): string => {
-    if (firstName && lastName) {
-      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  const getInitials = (firstname?: string, lastname?: string): string => {
+    if (firstname && lastname) {
+      return `${firstname.charAt(0)}${lastname.charAt(0)}`.toUpperCase();
     }
     return '??';
   }
@@ -72,12 +72,12 @@ export default function ProfilePage() {
                 {}
                 <AvatarImage src="/placeholder.svg" alt="Profile picture" />
                 <AvatarFallback>
-                  {isLoading ? '...' : getInitials(profile?.firstName, profile?.lastName)}
+                  {isLoading ? '...' : getInitials(profile?.firstname, profile?.lastname)}
                 </AvatarFallback>
               </Avatar>
               <div className="space-y-1 text-center">
                 <h3 className="text-xl font-bold">
-                  {isLoading ? 'Loading...' : error ? 'Error loading name' : `${profile?.firstName || ''} ${profile?.lastName || ''}`}
+                  {isLoading ? 'Loading...' : error ? 'Error loading name' : `${profile?.firstname || ''} ${profile?.lastname || ''}`}
                 </h3>
                 {}
                 <p className="text-sm text-muted-foreground">Computer Science</p>
