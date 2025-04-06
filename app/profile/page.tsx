@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import Link from "next/link"
 import { Edit, MessageSquare, Package, Star } from "lucide-react"
+import { useRouter } from 'next/navigation';
 
 
 interface UserProfile {
@@ -20,6 +21,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
 
   useEffect(() => {
@@ -30,7 +32,9 @@ export default function ProfilePage() {
       try {
         const response = await fetch(process.env.NEXT_PUBLIC_USER_URL as string, { credentials: "include" });
         if (!response.ok) {
+          router.push("/login");
           throw new Error(`Failed to fetch profile: ${response.status} ${response.statusText}`);
+
         }
         const data: UserProfile = await response.json();
         setProfile(data);
