@@ -9,6 +9,8 @@ import fs from "fs";
 import cookieParser from "cookie-parser";
 import { WebSocket, WebSocketServer } from "ws";
 import http from "http";
+import mongoose from "mongoose";
+import {Message} from "./models/Message.js";
 
 const { sign } = jwt;
 
@@ -19,6 +21,7 @@ const serviceAccount = JSON.parse(
 import walletRoutes from "./routes/wallet.js";
 import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
+import messageRoutes from "./routes/messages.js";
 
 if (!process.env.JWT_SECRET) {
   console.error("ERROR: Missing JWT_SECRET in .env file");
@@ -43,26 +46,137 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 app.set("wss", wss);
-wss.on("connection", (ws) => {
-  console.log("New client connected");
 
-  wss.on("message", (message) => {
-    console.log("Received:", message);
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send("New client connected");
+wss.on("connection", (ws, req) => {
+  console.log("WebSocket client connected");
+
+  // Optional: assign an ID to each connected client
+  ws.userId = null;
+
+  const authTimeout = setTimeout(() => {
+    if (!ws.userId) {
+      console.log("Client failed to authenticate within timeout period");
+      ws.send(JSON.stringify({
+        type: "auth_required",
+        message: "Authentication timeout"
+      }));
+      // Don't close immediately, give client a chance to authenticate
+    }
+  }, 10000); // 10 seconds auth timeout
+
+  ws.on("message", async (data) => {
+    try {
+      const parsed = JSON.parse(data);
+      
+      if (parsed.type === "auth") {
+        const token = parsed.token;
+        try {
+
+          
+          console.log("Authenticating WebSocket with token:", token ? `${token.substring(0, 10)}...` : "missing");
+          
+          if (!token) {
+            throw new Error("No token provided");
+          } 
+
+          const verified = jwt.verify(token, process.env.JWT_SECRET);
+          
+          const userCheck = await pool.query(
+            "SELECT id FROM users WHERE id = $1 AND firebase_uid = $2",
+            [verified.id, verified.uid]
+          );
+          if (userCheck.rowCount === 0) {
+            throw new Error("User not found");
+          }
+
+          ws.userId = verified.uid; // Store uid for sender tracking
+          console.log("User authenticated for WebSocket:", ws.userId);
+          clearTimeout(authTimeout);
+          // Send acknowledgment back to client
+          ws.send(JSON.stringify({
+            type: "auth_success",
+            userId: ws.userId
+          }));
+        } catch (err) {
+          console.error("WebSocket auth error:", err);
+          ws.send(JSON.stringify({
+            type: "auth_error",
+            message: "Authentication failed"
+          }));
+        }
+        return;
       }
-    });
+      if (!ws.userId) {
+        console.error("Unauthenticated message rejected");
+        ws.send(JSON.stringify({
+          type: "auth_required",
+          message: "Please authenticate first"
+        }));
+        return;
+      }
+
+      if (parsed.type === "message" && ws.userId) {
+        const { receiverId, content } = parsed;
+
+        const newMessage = new Message({
+          senderId: ws.userId,
+          receiverId,
+          content,
+        });
+
+        await newMessage.save();
+        console.log("Message saved:", newMessage);
+
+        // Broadcast to receiver if they are online
+        wss.clients.forEach(client => {
+          if (client.readyState === WebSocket.OPEN && client.userId === receiverId) {
+            client.send(JSON.stringify({
+              type: "message",
+              from: ws.userId,
+              content,
+              timestamp: newMessage.timestamp
+            }));
+          }
+        });
+        
+        // Send acknowledgment back to sender
+        ws.send(JSON.stringify({
+          type: "message_sent",
+          messageId: newMessage._id,
+          timestamp: newMessage.timestamp
+        }));
+      }
+    } catch (err) {
+      console.error("WebSocket error:", err);
+      ws.send(JSON.stringify({
+        type: "error",
+        message: "Error processing message"
+      }));
+    }
   });
 
   ws.on("close", () => {
-    console.log("Client disconnected");
+    console.log("WebSocket client disconnected");
+  });
+  
+  // Keep connection alive
+  const pingInterval = setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.ping();
+    } else {
+      clearInterval(pingInterval);
+    }
+  }, 30000);
+  
+  ws.on("pong", () => {
+    // console.log("Received pong from client");
   });
 });
 
 app.use("/wallet", walletRoutes);
 app.use("/auth", authRoutes);
 app.use("/api", userRoutes);
+app.use("/messages", messageRoutes);
 
 app.get("/test-db", async (req, res) => {
   try {
@@ -74,9 +188,20 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => {
+  console.log("Connected to MongoDB!");
+}).catch((err) => {
+  console.error("MongoDB connection error:", err);
+});
+
 app.get("/", (req, res) => {
   res.send("API is running");
 });
 
+// IMPORTANT: Use 'server' instead of 'app' to start the server
+// This ensures WebSocket and HTTP share the same port
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
