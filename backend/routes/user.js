@@ -154,4 +154,275 @@ router.get("/user/:id", authenticateToken, async (req, res) => {
   }
 });
 
+// Add this to your user.js routes file
+
+// Get user's listings
+router.get("/listings", authenticateToken, async (req, res) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized: User invalid or expired" });
+    }
+    
+    const userId = req.user.id;
+    console.log(`Fetching listings for user ID: ${userId}`);
+    
+    const query = `
+      SELECT l.id, l.title, l.description, l.price, l.category, 
+             l.condition, l.status, l.featured, l.created_at, l.updated_at
+      FROM listings l
+      WHERE l.user_id = $1
+      ORDER BY l.created_at DESC
+    `;
+    
+    const result = await pool.query(query, [userId]);
+    
+    console.log(`Found ${result.rows.length} listings for user ${userId}`);
+    
+    res.json({
+      success: true,
+      listings: result.rows
+    });
+  } catch (error) {
+    console.error("Error fetching user listings:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      details: error.message 
+    });
+  }
+});
+
+
+
+// Create a new listing
+router.post("/listing", authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { 
+      title, 
+      description, 
+      price, 
+      category, 
+      condition,
+      price_negotiable,
+      payment_mode,
+      meetup_location,
+      availability 
+    } = req.body;
+    
+    // Validate required fields
+    if (!title || !price || !category || !condition || !price_negotiable || !payment_mode) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Missing required fields" 
+      });
+    }
+    
+    // Validate price format
+    const priceValue = parseFloat(price);
+    if (isNaN(priceValue) || priceValue < 0) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid price format" 
+      });
+    }
+    
+    // Validate condition is one of the allowed values
+    const allowedConditions = ['New', 'Like New', 'Good', 'Fair', 'Poor'];
+    if (!allowedConditions.includes(condition)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid condition value" 
+      });
+    }
+
+    // Validate payment mode
+    const allowedPaymentModes = ['all', 'wallet', 'cash'];
+    if (payment_mode && !allowedPaymentModes.includes(payment_mode)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid payment mode value"
+      });
+    }
+    
+    // Convert isNegotiable to boolean
+    const isNegotiableValue = price_negotiable === 'yes';
+    
+    // Insert the new listing
+    const query = `
+      INSERT INTO listings (
+        user_id, title, description, price, category, condition, status,
+        price_negotiable, payment_mode, meetup_location, availability
+      ) VALUES ($1, $2, $3, $4, $5, $6, 'active', $7, $8, $9, $10)
+      RETURNING id, title, status, created_at
+    `;
+    
+    const values = [
+      userId, title, description, priceValue, category, condition,
+      isNegotiableValue, payment_mode || 'all', meetup_location, availability
+    ];
+    
+    const result = await pool.query(query, values);
+    
+    res.status(201).json({
+      success: true,
+      message: "Listing created successfully",
+      listing: result.rows[0]
+    });
+  } catch (error) {
+    console.error("Error creating listing:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      details: error.message 
+    });
+  }
+});
+
+// Add a route to get a specific listing by ID
+router.get("/listing/:id", authenticateToken, async (req, res) => {
+  try {
+    const listingId = req.params.id;
+    const userId = req.user.id;
+    
+    const query = `
+      SELECT * FROM listings 
+      WHERE id = $1 AND (user_id = $2 OR status = 'active')
+    `;
+    
+    const result = await pool.query(query, [listingId, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Listing not found" });
+    }
+    
+    res.json({
+      success: true,
+      listing: result.rows[0]
+    });
+  } catch (error) {
+    console.error("Error fetching listing:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Add this to your user.js routes file
+
+// Delete a listing (soft delete by changing status to 'deleted')
+router.delete("/listing/:id", authenticateToken, async (req, res) => {
+  try {
+    const listingId = req.params.id;
+    const userId = req.user.id;
+    
+    // First, check if the listing belongs to the user
+    const checkQuery = `
+      SELECT id FROM listings 
+      WHERE id = $1 AND user_id = $2
+    `;
+    
+    const checkResult = await pool.query(checkQuery, [listingId, userId]);
+    
+    if (checkResult.rows.length === 0) {
+      return res.status(403).json({ 
+        success: false, 
+        message: "You don't have permission to delete this listing" 
+      });
+    }
+    
+    // Update the status to 'deleted' (soft delete)
+    const updateQuery = `
+      UPDATE listings 
+      SET status = 'deleted', updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND user_id = $2
+      RETURNING id
+    `;
+    
+    const result = await pool.query(updateQuery, [listingId, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: "Listing not found" });
+    }
+    
+    res.json({
+      success: true,
+      message: "Listing successfully deleted"
+    });
+  } catch (error) {
+    console.error("Error deleting listing:", error);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// Get listings by category
+router.get("/listings/category/:category", async (req, res) => {
+  try {
+    const category = req.params.category;
+    
+    let query = `
+      SELECT l.id, l.title, l.description, l.price, l.category, 
+             l.condition, l.status, l.created_at, l.updated_at,
+             u.firstname, u.lastname
+      FROM listings l
+      JOIN users u ON l.user_id = u.id
+      WHERE l.status = 'active'
+    `;
+    
+    const params = [];
+    
+    // If a specific category is requested (not "all")
+    if (category && category !== 'all') {
+      query += ` AND l.category = $1`;
+      params.push(category);
+    }
+    
+    // Order by creation date, newest first
+    query += ` ORDER BY l.created_at DESC LIMIT 12`;
+    
+    const result = await pool.query(query, params);
+    
+    res.json({
+      success: true,
+      listings: result.rows
+    });
+  } catch (error) {
+    console.error("Error fetching listings by category:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      details: error.message 
+    });
+  }
+});
+
+// Get recent listings
+router.get("/listings/recent", async (req, res) => {
+  try {
+    const query = `
+      SELECT l.id, l.title, l.description, l.price, l.category, 
+             l.condition, l.status, l.created_at, l.updated_at,
+             u.firstname, u.lastname
+      FROM listings l
+      JOIN users u ON l.user_id = u.id
+      WHERE l.status = 'active'
+      ORDER BY l.created_at DESC
+      LIMIT 12
+    `;
+    
+    const result = await pool.query(query, []);
+    
+    res.json({
+      success: true,
+      listings: result.rows
+    });
+  } catch (error) {
+    console.error("Error fetching recent listings:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: "Server error", 
+      details: error.message 
+    });
+  }
+});
+
+
 export default router;

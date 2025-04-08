@@ -23,6 +23,7 @@ import authRoutes from "./routes/auth.js";
 import userRoutes from "./routes/user.js";
 import messageRoutes from "./routes/messages.js";
 
+
 if (!process.env.JWT_SECRET) {
   console.error("ERROR: Missing JWT_SECRET in .env file");
   process.exit(1);
@@ -177,6 +178,7 @@ app.use("/wallet", walletRoutes);
 app.use("/auth", authRoutes);
 app.use("/api", userRoutes);
 app.use("/messages", messageRoutes);
+
 
 app.get("/test-db", async (req, res) => {
   try {

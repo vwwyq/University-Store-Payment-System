@@ -86,6 +86,9 @@ export const signup = async (req, res) => {
       uid: firebase_uid 
     }, process.env.JWT_SECRET, { expiresIn: "7d" });
 
+    // Clear any existing cookie to prevent conflicts
+    res.clearCookie('jwtToken');
+    
     // Set cookie
     res.cookie('jwtToken', jwtToken, {
       httpOnly: true,
